@@ -22,32 +22,91 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final TextEditingController controller = TextEditingController();
+  final ScrollController scrollController = ScrollController();
 
-  late String chatId;
   late String myId;
+  late String chatId;
 
   @override
   void initState() {
     super.initState();
-
     myId = FirebaseAuth.instance.currentUser!.uid;
-    chatId = _getChatId(myId, widget.receiverId);
+
+    chatId = myId.compareTo(widget.receiverId) < 0
+        ? '$myId-${widget.receiverId}'
+        : '${widget.receiverId}-$myId';
 
     context.read<ChatBloc>().add(LoadMessages(chatId));
   }
 
-  /// ✅ FIX: chat id generator
-  String _getChatId(String a, String b) {
-    return a.compareTo(b) < 0 ? '$a-$b' : '$b-$a';
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (scrollController.hasClients) {
+        scrollController.animateTo(
+          scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+  }
+
+  /// 🌿 Soft bubble colors
+  Color _bubbleColor({required bool isMe, required bool seen}) {
+    if (isMe) {
+      return seen
+          ? const Color(0xFFE8F5E9) // seen (soft green)
+          : const Color(0xFFE3F2FD); // sent (soft blue)
+    } else {
+      return const Color(0xFFF1F3F4); // received (soft grey)
+    }
+  }
+
+  /// 📝 Text color
+  Color _textColor(bool isMe) {
+    return Colors.black87;
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.receiverName)),
+      backgroundColor: const Color(0xFFF6F7FB),
+
+      /// 🔝 AppBar (clean & calm)
+      appBar: AppBar(
+        elevation: 0.6,
+        backgroundColor: Colors.white,
+        foregroundColor: Colors.black,
+        titleSpacing: 0,
+        title: Row(
+          children: [
+            const SizedBox(width: 12),
+            CircleAvatar(
+              radius: 18,
+              backgroundColor: const Color(0xFFE3F2FD),
+              child: Text(
+                widget.receiverName[0].toUpperCase(),
+                style: const TextStyle(
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+            ),
+            const SizedBox(width: 12),
+            Text(
+              widget.receiverName,
+              style: const TextStyle(
+                fontWeight: FontWeight.w600,
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+      ),
+
       body: Column(
         children: [
-          /// 🔥 MESSAGES
+          /// 💬 Messages
           Expanded(
             child: BlocBuilder<ChatBloc, ChatState>(
               builder: (context, state) {
@@ -56,14 +115,20 @@ class _ChatScreenState extends State<ChatScreen> {
                 }
 
                 if (state is ChatLoaded) {
+                  _scrollToBottom();
+
                   return ListView.builder(
-                    padding: const EdgeInsets.all(8),
+                    controller: scrollController,
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 10,
+                    ),
                     itemCount: state.messages.length,
                     itemBuilder: (context, i) {
                       final msg = state.messages[i];
                       final isMe = msg.senderId == myId;
 
-                      /// 👀 mark seen
+                      /// 👀 Mark seen silently
                       if (!isMe && !msg.seen) {
                         context.read<ChatBloc>().add(
                               MarkSeen(
@@ -77,32 +142,36 @@ class _ChatScreenState extends State<ChatScreen> {
                         alignment:
                             isMe ? Alignment.centerRight : Alignment.centerLeft,
                         child: Container(
-                          margin: const EdgeInsets.symmetric(vertical: 4),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color:
-                                isMe ? Colors.blue : Colors.grey.shade300,
-                            borderRadius: BorderRadius.circular(12),
+                          margin: const EdgeInsets.symmetric(vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 14,
+                            vertical: 10,
                           ),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.end,
-                            children: [
-                              Text(
-                                msg.text,
-                                style: TextStyle(
-                                  color:
-                                      isMe ? Colors.white : Colors.black,
-                                ),
-                              ),
-                              if (isMe)
-                                Icon(
-                                  msg.seen
-                                      ? Icons.done_all
-                                      : Icons.done,
-                                  size: 14,
-                                  color: Colors.white70,
-                                ),
-                            ],
+                          constraints: BoxConstraints(
+                            maxWidth:
+                                MediaQuery.of(context).size.width * 0.72,
+                          ),
+                          decoration: BoxDecoration(
+                            color: _bubbleColor(
+                              isMe: isMe,
+                              seen: msg.seen,
+                            ),
+                            borderRadius: BorderRadius.only(
+                              topLeft: const Radius.circular(18),
+                              topRight: const Radius.circular(18),
+                              bottomLeft:
+                                  Radius.circular(isMe ? 18 : 6),
+                              bottomRight:
+                                  Radius.circular(isMe ? 6 : 18),
+                            ),
+                          ),
+                          child: Text(
+                            msg.text,
+                            style: TextStyle(
+                              color: _textColor(isMe),
+                              fontSize: 15,
+                              height: 1.45,
+                            ),
                           ),
                         ),
                       );
@@ -115,43 +184,63 @@ class _ChatScreenState extends State<ChatScreen> {
             ),
           ),
 
-          /// ✍️ INPUT
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: controller,
-                  decoration: const InputDecoration(
-                    hintText: 'Message...',
-                    contentPadding: EdgeInsets.all(12),
-                  ),
-                  onChanged: (v) {
-                    context.read<ChatBloc>().add(
-                          TypingEvent(
-                            receiverId: widget.receiverId,
-                            isTyping: v.isNotEmpty,
-                          ),
-                        );
-                  },
+          /// ✍️ Input field (soft & premium)
+          Container(
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
                 ),
-              ),
-              IconButton(
-                icon: const Icon(Icons.send),
-                onPressed: () {
-                  final text = controller.text.trim();
-                  if (text.isEmpty) return;
+              ],
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: controller,
+                    minLines: 1,
+                    maxLines: 4,
+                    decoration: InputDecoration(
+                      hintText: "Type a message…",
+                      filled: true,
+                      fillColor: const Color(0xFFF1F3F6),
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 18,
+                        vertical: 12,
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(28),
+                        borderSide: BorderSide.none,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                CircleAvatar(
+                  radius: 22,
+                  backgroundColor: const Color(0xFF90CAF9),
+                  child: IconButton(
+                    icon: const Icon(Icons.send, color: Colors.white),
+                    onPressed: () {
+                      final text = controller.text.trim();
+                      if (text.isEmpty) return;
 
-                  context.read<ChatBloc>().add(
-                        SendMessage(
-                          chatId: chatId,
-                          receiverId: widget.receiverId,
-                          text: text,
-                        ),
-                      );
-                  controller.clear();
-                },
-              ),
-            ],
+                      context.read<ChatBloc>().add(
+                            SendMessage(
+                              chatId: chatId,
+                              receiverId: widget.receiverId,
+                              text: text,
+                            ),
+                          );
+                      controller.clear();
+                    },
+                  ),
+                )
+              ],
+            ),
           ),
         ],
       ),

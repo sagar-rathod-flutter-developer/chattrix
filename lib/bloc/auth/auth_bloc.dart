@@ -42,6 +42,7 @@ class AuthBloc extends Bloc<AuthEvent, AuthState> {
           'email': event.email,
           'fcmToken': token,
           'isOnline': true,
+          'imageUrl': '',
         });
 
         emit(AuthSuccess());

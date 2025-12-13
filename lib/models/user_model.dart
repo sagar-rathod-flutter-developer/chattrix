@@ -3,12 +3,14 @@ class UserModel {
   final String name;
   final String email;
   final bool isOnline;
+  final String imageUrl;
 
   UserModel({
     required this.id,
     required this.name,
     required this.email,
     required this.isOnline,
+    required this.imageUrl,
   });
 
   factory UserModel.fromMap(String id, Map<String, dynamic> data) {
@@ -17,6 +19,7 @@ class UserModel {
       name: data['name'] ?? '',
       email: data['email'] ?? '',
       isOnline: data['isOnline'] ?? false,
+      imageUrl: data['imageUrl'] ?? '', // ✅ SAFE
     );
   }
 }
