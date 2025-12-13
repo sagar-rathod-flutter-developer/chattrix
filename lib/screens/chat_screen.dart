@@ -21,30 +21,33 @@ class ChatScreen extends StatefulWidget {
 }
 
 class _ChatScreenState extends State<ChatScreen> {
-  final controller = TextEditingController();
-  late final String chatId;
+  final TextEditingController controller = TextEditingController();
+
+  late String chatId;
+  late String myId;
 
   @override
   void initState() {
     super.initState();
 
-    final myId = FirebaseAuth.instance.currentUser!.uid;
-
-    chatId = myId.compareTo(widget.receiverId) < 0
-        ? '$myId-${widget.receiverId}'
-        : '${widget.receiverId}-$myId';
+    myId = FirebaseAuth.instance.currentUser!.uid;
+    chatId = _getChatId(myId, widget.receiverId);
 
     context.read<ChatBloc>().add(LoadMessages(chatId));
   }
 
+  /// ✅ FIX: chat id generator
+  String _getChatId(String a, String b) {
+    return a.compareTo(b) < 0 ? '$a-$b' : '$b-$a';
+  }
+
   @override
   Widget build(BuildContext context) {
-    final myId = FirebaseAuth.instance.currentUser!.uid;
-
     return Scaffold(
       appBar: AppBar(title: Text(widget.receiverName)),
       body: Column(
         children: [
+          /// 🔥 MESSAGES
           Expanded(
             child: BlocBuilder<ChatBloc, ChatState>(
               builder: (context, state) {
@@ -54,27 +57,52 @@ class _ChatScreenState extends State<ChatScreen> {
 
                 if (state is ChatLoaded) {
                   return ListView.builder(
+                    padding: const EdgeInsets.all(8),
                     itemCount: state.messages.length,
-                    itemBuilder: (context, index) {
-                      final msg = state.messages[index];
+                    itemBuilder: (context, i) {
+                      final msg = state.messages[i];
                       final isMe = msg.senderId == myId;
 
+                      /// 👀 mark seen
+                      if (!isMe && !msg.seen) {
+                        context.read<ChatBloc>().add(
+                              MarkSeen(
+                                chatId: chatId,
+                                messageId: msg.id,
+                              ),
+                            );
+                      }
+
                       return Align(
-                        alignment: isMe
-                            ? Alignment.centerRight
-                            : Alignment.centerLeft,
+                        alignment:
+                            isMe ? Alignment.centerRight : Alignment.centerLeft,
                         child: Container(
-                          margin: const EdgeInsets.all(8),
+                          margin: const EdgeInsets.symmetric(vertical: 4),
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: isMe ? Colors.blue : Colors.grey.shade300,
+                            color:
+                                isMe ? Colors.blue : Colors.grey.shade300,
                             borderRadius: BorderRadius.circular(12),
                           ),
-                          child: Text(
-                            msg.text,
-                            style: TextStyle(
-                              color: isMe ? Colors.white : Colors.black,
-                            ),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.end,
+                            children: [
+                              Text(
+                                msg.text,
+                                style: TextStyle(
+                                  color:
+                                      isMe ? Colors.white : Colors.black,
+                                ),
+                              ),
+                              if (isMe)
+                                Icon(
+                                  msg.seen
+                                      ? Icons.done_all
+                                      : Icons.done,
+                                  size: 14,
+                                  color: Colors.white70,
+                                ),
+                            ],
                           ),
                         ),
                       );
@@ -86,12 +114,25 @@ class _ChatScreenState extends State<ChatScreen> {
               },
             ),
           ),
+
+          /// ✍️ INPUT
           Row(
             children: [
               Expanded(
                 child: TextField(
                   controller: controller,
-                  decoration: const InputDecoration(hintText: "Message"),
+                  decoration: const InputDecoration(
+                    hintText: 'Message...',
+                    contentPadding: EdgeInsets.all(12),
+                  ),
+                  onChanged: (v) {
+                    context.read<ChatBloc>().add(
+                          TypingEvent(
+                            receiverId: widget.receiverId,
+                            isTyping: v.isNotEmpty,
+                          ),
+                        );
+                  },
                 ),
               ),
               IconButton(
@@ -101,13 +142,12 @@ class _ChatScreenState extends State<ChatScreen> {
                   if (text.isEmpty) return;
 
                   context.read<ChatBloc>().add(
-                    SendMessage(
-                      chatId: chatId,
-                      receiverId: widget.receiverId,
-                      text: text,
-                    ),
-                  );
-
+                        SendMessage(
+                          chatId: chatId,
+                          receiverId: widget.receiverId,
+                          text: text,
+                        ),
+                      );
                   controller.clear();
                 },
               ),

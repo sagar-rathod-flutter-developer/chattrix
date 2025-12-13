@@ -1,25 +1,25 @@
-// models/message_model.dart
-import 'package:cloud_firestore/cloud_firestore.dart';
-
 class MessageModel {
+  final String id;
   final String senderId;
   final String receiverId;
   final String text;
-  final DateTime timestamp;
+  final bool seen;
 
   MessageModel({
+    required this.id,
     required this.senderId,
     required this.receiverId,
     required this.text,
-    required this.timestamp,
+    required this.seen,
   });
 
-  factory MessageModel.fromMap(Map<String, dynamic> map) {
+  factory MessageModel.fromDoc(String id, Map<String, dynamic> map) {
     return MessageModel(
+      id: id,
       senderId: map['senderId'],
       receiverId: map['receiverId'],
       text: map['text'],
-      timestamp: (map['timestamp'] as Timestamp).toDate(),
+      seen: map['seen'] ?? false,
     );
   }
 }

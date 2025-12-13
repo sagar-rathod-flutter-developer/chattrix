@@ -41,7 +41,7 @@ class UsersListScreen extends StatelessWidget {
       create: (_) => UsersBloc()..add(LoadUsers()),
       child: Scaffold(
         appBar: AppBar(
-          title: const Text('Users'),
+          title: const Text('CHATTRIX'),
           actions: [
             IconButton(
               icon: const Icon(Icons.logout),
