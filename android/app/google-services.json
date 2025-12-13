@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "709410727200",
+    "project_id": "chattrix-b2bd9",
+    "storage_bucket": "chattrix-b2bd9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:709410727200:android:7d0a83b722aad51d90a345",
+        "android_client_info": {
+          "package_name": "com.example.chattrix"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBuasoU0Iw-AFaskNFs2S_btCd7BLp7WNU"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
